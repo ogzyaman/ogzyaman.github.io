@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yenilenmiş Mutfak Asistanı</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@500;600&display=swap" rel="stylesheet">
+    <link rel="manifest" href="manifest.json">
+    <!-- Chosen Palette: "Zinc & Teal" -->
+    <!-- Application Structure Plan: The "Tarifler" (Recipes) section is further refined. Make-ahead recipes are now split into two distinct parts: a "Pazar Hazırlığı" (Sunday Prep) card for base preparation and a "Hafta İçi Servis" (Weekday Service) card for final assembly, providing an even more practical, task-focused workflow. This structure perfectly mirrors the user's cooking process, separating large-batch prep from quick, daily assembly. -->
+    <!-- Visualization & Content Choices: The primary change is in the data architecture for recipes. Recipes like "Piyaz" are now two separate data objects, one in the `pazar` array and one in the `haftaici` array, each with specific ingredients and steps for that phase. The rendering logic naturally creates two distinct visual blocks for these categories, enhancing usability. This structural data change, reflected in the HTML output, completes the application's core functionality by providing maximum clarity to the end-user. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f4f4f5; /* zinc-100 */ color: #3f3f46; /* zinc-700 */ }
+        h1, h2, h3 { font-family: 'Lora', serif; }
+        .main-tab-content, .sub-tab-content { display: none; }
+        .main-tab-content.active, .sub-tab-content.active { display: block; animation: fadeIn 0.5s; }
+        .main-nav-button.active { background-color: #0d9488; /* teal-600 */ color: white; }
+        .sub-nav-button.active { background-color: #14b8a6; /* teal-500 */ color: white; box-shadow: 0 4px 14px 0 rgba(20, 184, 166, 0.3); }
+        .list-item-checkbox:checked + label { border-left: 4px solid #14b8a6; background-color: #f8fafc; }
+        .list-item-checkbox:checked + label .item-text, .list-item-checkbox:checked + label .item-quantity { text-decoration: line-through; color: #a1a1aa; }
+        #loader { border: 4px solid #e4e4e7; border-top: 4px solid #14b8a6; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">
+
+        <header class="text-center mb-10">
+            <h1 class="text-4xl sm:text-5xl font-bold text-zinc-800 tracking-tight">Mutfak Asistanı</h1>
+            <p class="mt-3 text-lg text-zinc-600">Alışveriş, menü ve tarifleriniz tek bir yerde.</p>
+        </header>
+
+        <nav id="main-nav" class="grid grid-cols-3 gap-1 mb-10 bg-zinc-200 p-1 rounded-xl shadow-inner">
+            <button data-tab="alisveris" class="main-nav-button active font-semibold py-3 px-2 sm:px-4 rounded-lg transition-all duration-300 flex items-center justify-center gap-2">🛒<span class="hidden sm:inline">Alışveriş Listesi</span></button>
+            <button data-tab="menu" class="main-nav-button font-semibold py-3 px-2 sm:px-4 rounded-lg transition-all duration-300 flex items-center justify-center gap-2">🗓️<span class="hidden sm:inline">Yemek Menüsü</span></button>
+            <button data-tab="tarifler" class="main-nav-button font-semibold py-3 px-2 sm:px-4 rounded-lg transition-all duration-300 flex items-center justify-center gap-2">📖<span class="hidden sm:inline">Tarifler</span></button>
+        </nav>
+
+        <main>
+            <!-- Alışveriş Listesi Ana Bölümü -->
+            <div id="alisveris" class="main-tab-content active">
+                <div class="flex flex-col sm:flex-row justify-center items-center gap-3 mb-6">
+                    <button id="fetchPricesBtn" class="w-full sm:w-auto flex items-center justify-center gap-2 bg-teal-500 text-white font-semibold py-2 px-5 rounded-lg shadow-md hover:bg-teal-600 transition-all"><span>💰</span><span>Fiyatları Getir</span></button>
+                    <button id="resetBtn" class="w-full sm:w-auto bg-zinc-300 text-zinc-800 font-semibold py-2 px-5 rounded-lg hover:bg-zinc-400 transition-all">Listeyi Sıfırla</button>
+                    <div id="loader" class="hidden"></div>
+                </div>
+                 <nav id="alisveris-sub-nav" class="flex flex-wrap justify-center gap-2 sm:gap-3 mb-8"></nav>
+                 <div id="alisveris-content"></div>
+            </div>
+
+            <!-- Yemek Menüsü Ana Bölümü -->
+            <div id="menu" class="main-tab-content">
+                <nav id="menu-sub-nav" class="flex flex-wrap justify-center gap-2 sm:gap-3 mb-8"></nav>
+                <div id="menu-content"></div>
+            </div>
+
+            <!-- Tarifler Ana Bölümü -->
+            <div id="tarifler" class="main-tab-content">
+                <nav id="tarifler-sub-nav" class="flex flex-wrap justify-center gap-2 sm:gap-3 mb-8"></nav>
+                <div id="tarifler-content"></div>
+            </div>
+        </main>
+        
+        <footer class="text-center mt-12 text-zinc-500 text-sm">
+            <p>Bu uygulama sizin için özenle hazırlandı.</p>
+        </footer>
+    </div>
+
+    <script>
+        const appData = {
+            aylik: {
+                alisveris: { title: 'Uzun Ömürlü Ürünler', items: [ { id: 'aylik1', name: 'Kuru Fasulye', quantity: '1 kg' }, { id: 'aylik2', name: 'Nohut', quantity: '1 kg' }, { id: 'aylik3', name: 'Yeşil Mercimek', quantity: '1 kg' }, { id: 'aylik4', name: 'Kırmızı Mercimek', quantity: '1 kg' }, { id: 'aylik5', name: 'Barbunya', quantity: '1 kg' }, { id: 'aylik6', name: 'Pirinç', quantity: '2 kg' }, { id: 'aylik7', name: 'Bulgur (Pilavlık)', quantity: '2 kg' }, { id: 'aylik8', name: 'Erişte', quantity: '1-2 paket' }, { id: 'aylik9', name: 'Kuru Soğan', quantity: '2-3 kg' }, { id: 'aylik10', name: 'Sarımsak', quantity: '4-5 baş' }, { id: 'aylik11', name: 'Turşu', quantity: '1 büyük kavanoz' }, { id: 'aylik12', name: 'Zeytinyağı', quantity: 'Salatalar için' }, { id: 'aylik13', name: 'Ayçiçek Yağı', quantity: 'Yemekler için' }, { id: 'aylik14', name: 'Sirke', quantity: 'Üzüm veya elma' }, { id: 'aylik15', name: 'Nar Ekşisi', quantity: '' }, { id: 'aylik16', name: 'Temel Baharatlar', quantity: 'Evde yoksa' } ] }
+            },
+            hafta1: {
+                alisveris: { title: '1. Hafta Taze Ürünler', categories: { 'Sebze / Yeşillik': [ { id: 'h1_1', name: 'Domates', quantity: '1.5 - 2 kg' }, { id: 'h1_2', name: 'Salatalık', quantity: '1 kg' }, { id: 'h1_3', name: 'Sivri Biber', quantity: '500 gr' }, { id: 'h1_4', name: 'Patlıcan', quantity: '1 kg' }, { id: 'h1_5', name: 'Semizotu', quantity: '1 demet' }, { id: 'h1_6', name: 'Marul', quantity: '1 adet' }, { id: 'h1_7', name: 'Maydanoz', quantity: '1 demet' }, { id: 'h1_8', name: 'Taze Nane', quantity: '1 demet' }, { id: 'h1_9', name: 'Limon', quantity: '4-5 adet' } ], 'Et / Süt Ürünleri': [ { id: 'h1_10', name: 'Tavuk Göğsü veya But', quantity: '~1 kg' }, { id: 'h1_11', name: 'Kıyma', quantity: '250-300 gr' }, { id: 'h1_12', name: 'Yoğurt', quantity: '1 büyük kova' } ], 'Fırın': [ { id: 'h1_13', name: 'Tam Buğday Ekmeği', quantity: '1 adet' } ] } },
+                menu: [ { day: 'Pazartesi (Spor)', meal: 'Tavuk Sote + Bulgur Pilavı + Naneli Cacık', calories: '850 kcal' }, { day: 'Salı', meal: 'Yeşil Mercimek Yemeği + Erişte + Semizotu Salatası', calories: '700 kcal' }, { day: 'Çarşamba (Spor)', meal: 'Tavuk Sote + Bulgur Pilavı + Çoban Salata', calories: '800 kcal' }, { day: 'Perşembe', meal: 'Yeşil Mercimek Yemeği + Tam Buğday Ekmeği + Yoğurt', calories: '650 kcal' }, { day: 'Cuma', meal: 'Patlıcan Musakka + Pirinç Pilavı', calories: '900 kcal' } ],
+                tarifler: {
+                    pazar: [ { title: 'Tavuk Sote', ingredients: ['1 kg tavuk kuşbaşı', '4 adet domates', '4 adet sivri biber', '1 adet soğan', '2 diş sarımsak', 'Sıvı yağ, kekik, pul biber, tuz'], steps: ['Soğan ve sarımsağı soteleyin.', 'Biberleri ekleyip kavurun.', 'Tavukları ekleyip suyunu salıp çekene kadar pişirin.', 'Rendelenmiş domatesleri ve baharatları ekleyip kısık ateşte pişirin.'] }, { title: 'Yeşil Mercimek Yemeği', ingredients: ['2 su bardağı yeşil mercimek', '1 adet soğan', '1 adet havuç', '1 yemek kaşığı salça', 'Sıvı yağ, tuz, karabiber'], steps: ['Soğan ve havucu soteleyin.', 'Salçayı ekleyip kavurun.', 'Yıkanmış mercimekleri ve üzerini geçecek kadar sıcak su ekleyin.', 'Tuz ve karabiberi ekleyip mercimekler yumuşayana kadar pişirin.'] }, { title: 'Patlıcan Musakka', ingredients: ['1 kg patlıcan', '300 gr kıyma', '1 adet soğan', '2 adet domates', '1 yemek kaşığı salça', 'Sıvı yağ, tuz, karabiber'], steps: ['Patlıcanları alacalı soyup kızartın ve tepsiye dizin.', 'Ayrı bir tavada soğan ve kıymayı kavurun.', 'Salça, rendelenmiş domates ve baharatları ekleyip sos hazırlayın.', 'Sosu patlıcanların üzerine dökün ve 180°C fırında 20 dakika pişirin.'] } ],
+                    haftaici: [ { title: 'Naneli Cacık', ingredients: ['2 su bardağı yoğurt', '2 adet salatalık', '1 diş sarımsak', 'Kuru nane, zeytinyağı, tuz'], steps: ['Salatalıkları rendeleyin veya çok küçük doğrayın.', 'Yoğurt, ezilmiş sarımsak ve tuz ile karıştırın.', 'Soğuk su ile kıvamını ayarlayın.', 'Üzerine nane ve zeytinyağı gezdirerek servis yapın.'] }, { title: 'Çoban Salata', ingredients: ['2 adet domates', '2 adet salatalık', '1 adet biber', '1 adet küçük soğan', 'Maydanoz', 'Sosu: Limon suyu, zeytinyağı, tuz'], steps: ['Tüm malzemeleri küçük küpler halinde doğrayın.', 'Kıyılmış maydanozu ekleyin.', 'Sosuyla karıştırıp servis yapın.'] } ]
+                }
+            },
+            hafta2: {
+                alisveris: { title: '2. Hafta Taze Ürünler', categories: { 'Et / Süt Ürünleri': [ { id: 'h2_1', name: 'Tavuk But', quantity: '1 - 1.2 kg' }, { id: 'h2_2', name: 'Kıyma', quantity: '300-400 gr' }, { id: 'h2_3', name: 'Yoğurt', quantity: '1 büyük kova' } ], 'Sebze / Yeşillik': [ { id: 'h2_4', name: 'Patates', quantity: '1 kg' }, { id: 'h2_5', name: 'Domates', quantity: '5-6 adet' }, { id: 'h2_6', name: 'Çeri Domates', quantity: '1 paket' }, { id: 'h2_7', name: 'Salatalık', quantity: '4-5 adet' }, { id: 'h2_8', name: 'Sivri/Çarliston Biber', quantity: '5-6 adet' }, { id: 'h2_9', name: 'Marul', quantity: '1 adet' }, { id: 'h2_10', name: 'Taze Soğan', quantity: '1 demet' }, { id: 'h2_11', name: 'Maydanoz', quantity: '1 demet' }, { id: 'h2_12', name: 'Taze Nane', quantity: '1 demet' }, { id: 'h2_13', name: 'Taze Kekik/Biberiye', quantity: 'İsteğe bağlı' }, { id: 'h2_14', name: 'Limon', quantity: '2-3 adet' } ] } },
+                menu: [ { day: 'Pazartesi (Spor)', meal: 'Fırında Tavuk But + Bulgur Pilavı + Naneli Cacık', calories: '950 kcal' }, { day: 'Salı', meal: 'Nohut Yemeği + Pirinç Pilavı + Turşu', calories: '800 kcal' }, { day: 'Çarşamba (Spor)', meal: 'Fırında Tavuk But + Bulgur Pilavı + Yoğurt', calories: '900 kcal' }, { day: 'Perşembe', meal: 'Mercimek Köftesi + Bol Yeşillik + Ayran', calories: '600 kcal' }, { day: 'Cuma', meal: 'İzmir Köfte + Sade Makarna + Domates Salatası', calories: '850 kcal' } ],
+                tarifler: {
+                    pazar: [ { title: 'Fırında Tavuk But', ingredients: ['1 kg tavuk but', '1 kg patates', '2 adet biber', '1 paket çeri domates', 'Biberiye, kekik, zeytinyağı, tuz'], steps: ['Tüm malzemeleri baharatlar ve yağ ile harmanlayın.', 'Fırın tepsisine yayın.', '200°C fırında tavuklar ve patatesler kızarana kadar pişirin.'] }, { title: 'Nohut Yemeği', ingredients: ['3 su bardağı haşlanmış nohut', '1 adet kuru soğan', '1 yemek kaşığı domates salçası', 'Sıvı yağ, tuz, pul biber'], steps: ['Soğanı yemeklik doğrayıp sıvı yağda pembeleşinceye kadar kavurun.', 'Salçayı ekleyip 1-2 dakika daha kavurun.', 'Haşlanmış nohutları, tuzu, pul biberi ve üzerini geçecek kadar sıcak suyu ekleyin.', 'Kısık ateşte 15-20 dakika kadar pişirin.'] }, { title: 'İzmir Köfte', ingredients: ['400 gr kıyma', '1 adet soğan', '1 yumurta', 'Bayat ekmek içi', 'Maydanoz', 'Kimyon, tuz, karabiber', 'Sosu için: Salça, domates, sıvı yağ'], steps: ['Köfte malzemelerini yoğurun ve şekil verin.', 'Patatesleri elma dilimi doğrayın. Köfte ve patatesleri hafifçe kızartın.', 'Tepsiye dizin, üzerine salçalı sosu gezdirip 180°C fırında pişirin.'] }, { title: 'Mercimek Köftesi', ingredients: ['1 su bardağı kırmızı mercimek', '1.5 su bardağı ince bulgur', '1 adet soğan', 'Salça', 'Nar ekşisi, maydanoz, taze soğan, limon'], steps: ['Mercimeği haşlayıp suyunu çekince bulguru ekleyin ve demlenmeye bırakın.', 'Ayrı bir yerde soğanı soteleyip salça ekleyin.', 'Tüm malzemeleri birleştirip yoğurun ve şekil verin.'] } ],
+                    haftaici: [ { title: 'Domates Salatası', ingredients: ['3 adet domates', '1 adet küçük kırmızı soğan', 'Maydanoz', 'Sosu: Zeytinyağı, nar ekşisi, tuz'], steps: ['Domatesleri küp küp, soğanı piyazlık doğrayın.', 'Maydanozu ince kıyın ve tüm malzemeleri karıştırın.', 'Sosuyla servis yapın.'] } ]
+                }
+            },
+            hafta3: {
+                alisveris: { title: '3. Hafta Taze Ürünler', categories: { 'Et / Süt Ürünleri': [ { id: 'h3_1', name: 'Tavuk Göğsü/But (kuşbaşı)', quantity: '700-800 gr' }, { id: 'h3_2', name: 'Kıyma', quantity: '300 gr' }, { id: 'h3_3', name: 'Yoğurt', quantity: '1 büyük kova' } ], 'Sebze / Yeşillik': [ { id: 'h3_4', name: 'Patates', quantity: '1.5 kg' }, { id: 'h3_5', name: 'Patlıcan', quantity: '1.5 kg' }, { id: 'h3_6', name: 'Domates', quantity: '1 kg' }, { id: 'h3_7', name: 'Çarliston/Sivri Biber', quantity: '5-6 adet' }, { id: 'h3_8', name: 'Salatalık', quantity: '4-5 adet' }, { id: 'h3_9', name: 'Marul/Roka', quantity: '1 adet' }, { id: 'h3_10', name: 'Kırmızı Soğan', quantity: '1-2 adet' }, { id: 'h3_11', name: 'Maydanoz ve Dereotu', quantity: "1'er demet" }, { id: 'h3_12', name: 'Limon', quantity: '2-3 adet' }, { id: 'h3_13', name: 'Enginar veya Taze Börülce', quantity: '4-5 adet veya 500 gr' } ] } },
+                menu: [ { day: 'Pazartesi (Spor)', meal: 'Tavuklu Patates Oturtma + Bulgur Pilavı + Yoğurt', calories: '850 kcal' }, { day: 'Salı', meal: 'Kıymalı Patlıcan Yemeği + Pirinç Pilavı + Cacık', calories: '900 kcal' }, { day: 'Çarşamba (Spor)', meal: 'Tavuklu Patates Oturtma + Piyaz', calories: '750 kcal' }, { day: 'Perşembe', meal: 'Kıymalı Patlıcan Yemeği + Pirinç Pilavı + Mevsim Salata', calories: '850 kcal' }, { day: 'Cuma', meal: 'Zeytinyağlı Taze Börülce + Ekmek', calories: '550 kcal' } ],
+                tarifler: {
+                    pazar: [ { title: 'Tavuklu Patates Oturtma', ingredients: ['800 gr tavuk kuşbaşı', '1.5 kg patates', '2 adet domates', '2 adet biber', 'Salça, sıvı yağ, tuz'], steps: ['Patatesleri halka halka doğrayıp tepsiye dizin.', 'Üzerine tavukları, doğranmış domates ve biberi yayın.', 'Salçalı sıcak suyu üzerine gezdirip 180°C fırında pişirin.'] }, { title: 'Kıymalı Patlıcan Yemeği', ingredients: ['1.5 kg patlıcan', '300 gr kıyma', '1 adet soğan', 'Domates, biber, salça', 'Sıvı yağ, tuz'], steps: ['Patlıcanları küp küp doğrayıp tuzlu suda bekletin.', 'Soğan ve kıymayı kavurun, salça ve doğranmış sebzeleri ekleyin.', 'Patlıcanları ekleyip üzerini geçmeyecek kadar su koyun ve pişirin.'] }, { title: 'Zeytinyağlı Taze Börülce', ingredients: ['500 gr taze börülce', '1 adet soğan', '2 adet domates', '1 diş sarımsak', 'Yarım çay bardağı zeytinyağı', '1 küp şeker, tuz'], steps: ['Soğanı yemeklik doğrayıp zeytinyağında soteleyin.', 'Ayıklanmış börülceleri ekleyip birkaç dakika daha kavurun.', 'Rendelenmiş domates, ezilmiş sarımsak, şeker ve tuzu ekleyin.', 'Kısık ateşte, kapağı kapalı olarak börülceler yumuşayana kadar pişirin. Soğuk servis yapın.'] }, { title: 'Piyaz (Ön Hazırlık)', ingredients: ['2 su bardağı kuru fasulye'], steps: ['Fasulyeyi bir gece önceden ıslatın.', 'Ertesi gün suyunu süzüp yumuşayana kadar haşlayın.', 'Haşlanan fasulyeleri süzüp soğutun ve kapalı bir kapta buzdolabına kaldırın.'] } ],
+                    haftaici: [ { title: 'Piyaz (Servis)', ingredients: ['Pazardan hazırlanan haşlanmış fasulye', '1 adet kırmızı soğan', '1 adet domates', 'Yarım demet maydanoz', 'Sosu: Zeytinyağı, limon suyu, sirke, tuz, sumak'], steps: ['Soğanı piyazlık doğrayın, domatesi küp küp kesin, maydanozu kıyın.', 'Tüm malzemeleri Pazar\'dan hazırladığınız fasulye ile bir kapta karıştırın.', 'Sosu için malzemeleri ayrı bir kapta çırpın.', 'Servis yapmadan hemen önce sosu üzerine gezdirip harmanlayın.'] } ]
+                }
+            },
+            hafta4: {
+                alisveris: { title: '4. Hafta Taze Ürünler', categories: { 'Et / Süt Ürünleri': [ { id: 'h4_1', name: 'Tavuk Göğsü/Kuşbaşı But', quantity: '1.2 kg' }, { id: 'h4_2', name: 'Yoğurt', quantity: '1 büyük kova' } ], 'Sebze / Yeşillik': [ { id: 'h4_3', name: 'Patlıcan', quantity: '2-3 adet' }, { id: 'h4_4', name: 'Patates', quantity: '2-3 adet' }, { id: 'h4_5', name: 'Havuç', quantity: '2-3 adet' }, { id: 'h4_6', name: 'Domates', quantity: '1 kg' }, { id: 'h4_7', name: 'Kırmızı Kapya Biber', quantity: '2 adet' }, { id: 'h4_8', name: 'Çarliston/Sivri Biber', quantity: '4-5 adet' }, { id: 'h4_9', name: 'Salatalık', quantity: '5-6 adet' }, { id: 'h4_10', name: 'Ceviz İçi', quantity: 'Küçük bir paket' }, { id: 'h4_11', name: 'Maydanoz', quantity: '1 demet' }, { id: 'h4_12', name: 'Taze Nane', quantity: '1 demet' }, { id: 'h4_13', name: 'Limon', quantity: '2-3 adet' } ], 'Fırın': [ { id: 'h4_14', name: 'Tam Buğday Ekmeği', quantity: '1 adet' } ] } },
+                menu: [ { day: 'Pazartesi (Spor)', meal: 'Tavuklu Türlü + Bulgur Pilavı + Yoğurt', calories: '800 kcal' }, { day: 'Salı', meal: 'Barbunya Pilaki + Tam Buğday Ekmeği + Gavurdağı Salata', calories: '700 kcal' }, { day: 'Çarşamba (Spor)', meal: 'Tavuklu Türlü + Pirinç Pilavı', calories: '850 kcal' }, { day: 'Perşembe', meal: 'Barbunya Pilaki + Erişte + Cacık', calories: '750 kcal' }, { day: 'Cuma', meal: 'Tavuklu Bolonez Sos + Spagetti Makarna', calories: '900 kcal' } ],
+                tarifler: {
+                    pazar: [ { title: 'Tavuklu Türlü', ingredients: ['600 gr tavuk kuşbaşı', 'Patates, patlıcan, havuç, biber, domates', 'Salça, sıvı yağ, tuz'], steps: ['Tüm sebzeleri doğrayın.', 'Tencerede önce tavukları soteleyin, ardından sırasıyla sebzeleri ekleyip kavurun.', 'Salça ve sıcak su ekleyip sebzeler yumuşayana kadar pişirin.'] }, { title: 'Barbunya Pilaki', ingredients: ['500 gr haşlanmış barbunya', '1 adet havuç', '1 adet patates', '1 adet soğan', '2 diş sarımsak', 'Yarım çay bardağı zeytinyağı', '1 yemek kaşığı salça, tuz'], steps: ['Soğanı soteleyin. Küp doğranmış havuç ve patatesi ekleyip kavurun.', 'Salçayı ekleyin. Haşlanmış barbunyaları, sarımsağı ve üzerini geçecek kadar sıcak su ekleyin.', 'Kısık ateşte sebzeler yumuşayana kadar pişirin. Ilık veya soğuk servis yapın.'] }, { title: 'Tavuklu Bolonez Sos', ingredients: ['600 gr tavuk kıyma (veya çok küçük doğranmış göğüs)', '1 adet soğan', '2 adet havuç', '1 adet kapya biber', 'Domates, salça, kekik, tuz'], steps: ['Soğan, havuç ve biberi küçük küçük doğrayıp soteleyin.', 'Tavuk kıymayı ekleyip kavurun.', 'Rendelenmiş domates, salça ve baharatları ekleyip kısık ateşte 30-40 dakika pişirin.'] }, { title: 'Gavurdağı (Ön Hazırlık)', ingredients: ['2 adet domates', '1 adet salatalık', '1 adet yeşil biber', '1 adet küçük kırmızı soğan', 'Yarım demet maydanoz'], steps: ['Tüm sebzeleri çok küçük küpler halinde doğrayın.', 'Maydanozu ince ince kıyın.', 'Tüm doğranmış malzemeyi sossuz bir şekilde karıştırıp kapalı bir kapta buzdolabına kaldırın.'] } ],
+                    haftaici: [ { title: 'Gavurdağı (Servis)', ingredients: ['Pazardan hazırlanan salata bazı', 'Yarım su bardağı ceviz içi', 'Sosu: Nar ekşisi, zeytinyağı, sumak, tuz'], steps: ['Pazar\'dan hazırladığınız salata bazını bir kaseye alın.', 'İri kırılmış cevizi ekleyin.', 'Servisten hemen önce sos malzemelerini karıştırıp üzerine gezdirin.'] } ]
+                }
+            }
+        };
+
+        const mockPriceDatabase = { 'Kuru Fasulye': 110, 'Nohut': 95, 'Yeşil Mercimek': 80, 'Kırmızı Mercimek': 75, 'Barbunya': 120, 'Pirinç': 160, 'Bulgur (Pilavlık)': 110, 'Erişte': 45, 'Kuru Soğan': 40, 'Sarımsak': 150, 'Turşu': 85, 'Zeytinyağı': 450, 'Ayçiçek Yağı': 210, 'Sirke': 35, 'Nar Ekşisi': 130, 'Temel Baharatlar': 100, 'Domates': 40, 'Salatalık': 35, 'Sivri Biber': 60, 'Patlıcan': 45, 'Semizotu': 25, 'Marul': 30, 'Maydanoz': 15, 'Taze Nane': 15, 'Limon': 50, 'Tavuk Göğsü veya But': 250, 'Kıyma': 650, 'Yoğurt': 140, 'Tam Buğday Ekmeği': 25, 'Tavuk But': 220, 'Patates': 20, 'Çeri Domates': 55, 'Taze Soğan': 20, 'Taze Kekik/Biberiye': 30, 'Tavuk Göğsü/But (kuşbaşı)': 260, 'Kırmızı Soğan': 25, 'Maydanoz ve Dereotu': 30, 'Enginar veya Taze Börülce': 90, 'Havuç': 25, 'Kırmızı Kapya Biber': 70, 'Ceviz İçi': 250 };
+        
+        document.addEventListener('DOMContentLoaded', function () {
+            
+            function generateListItemHTML(item) {
+                return `<div class="list-item"><input type="checkbox" id="${item.id}" data-price="0" data-name="${item.name}" class="list-item-checkbox hidden"><label for="${item.id}" class="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-all duration-200 border-l-4 border-transparent"><div class="flex flex-col"><span class="item-text font-medium text-zinc-800">${item.name}</span><span class="item-quantity text-sm text-zinc-500">${item.quantity}</span></div><div class="item-price font-semibold text-teal-600 text-lg"></div></label></div>`;
+            }
+
+            function renderShoppingLists() {
+                const navContainer = document.getElementById('alisveris-sub-nav');
+                const contentContainer = document.getElementById('alisveris-content');
+                navContainer.innerHTML = '';
+                contentContainer.innerHTML = '';
+                const weekKeys = ['aylik', 'hafta1', 'hafta2', 'hafta3', 'hafta4'];
+                weekKeys.forEach((key, index) => {
+                     if(!appData[key] || !appData[key].alisveris) return;
+                     const weekName = key === 'aylik' ? 'Aylık Temeller' : `${index}. Hafta`;
+                     navContainer.innerHTML += `<button data-tab="${key}-alisveris" class="sub-nav-button alisveris-nav-btn text-sm sm:text-base font-medium py-2 px-4 rounded-full shadow-sm bg-white hover:bg-zinc-100 transition-colors">${weekName}</button>`;
+                    let listData = appData[key].alisveris;
+                    let html = `<div id="${key}-alisveris" class="sub-tab-content alisveris-tab"><div class="space-y-6">`;
+                    if (listData.categories) {
+                        for (const category in listData.categories) {
+                            html += `<div><h2 class="text-2xl font-semibold text-zinc-700 mb-4">${category}</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-4">${listData.categories[category].map(generateListItemHTML).join('')}</div></div>`;
+                        }
+                    } else {
+                        html += `<div><h2 class="text-2xl font-semibold text-zinc-700 mb-4">${listData.title}</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-4">${listData.items.map(generateListItemHTML).join('')}</div></div>`;
+                    }
+                    html += `</div><div id="total-${key}-alisveris" class="mt-8 text-right font-bold text-2xl text-zinc-700 p-4 bg-zinc-200 rounded-lg hidden">Seçili Ürünler Toplamı: <span class="total-amount text-teal-600">0.00 TL</span></div></div>`;
+                    contentContainer.innerHTML += html;
+                });
+                document.querySelector('.alisveris-nav-btn')?.classList.add('active');
+                document.querySelector('.alisveris-tab')?.classList.add('active');
+            }
+            
+            function renderMenu() {
+                const navContainer = document.getElementById('menu-sub-nav');
+                const contentContainer = document.getElementById('menu-content');
+                navContainer.innerHTML = ''; contentContainer.innerHTML = '';
+                const weekKeys = ['hafta1', 'hafta2', 'hafta3', 'hafta4'];
+                weekKeys.forEach((key, index) => {
+                    if(!appData[key] || !appData[key].menu) return;
+                    navContainer.innerHTML += `<button data-tab="${key}-menu" class="sub-nav-button menu-nav-btn text-sm sm:text-base font-medium py-2 px-4 rounded-full shadow-sm bg-white hover:bg-zinc-100 transition-colors">${index + 1}. Hafta</button>`;
+                    let html = `<div id="${key}-menu" class="sub-tab-content menu-tab"><div class="space-y-4">`;
+                    appData[key].menu.forEach(day => {
+                        html += `<div class="bg-white p-5 rounded-xl shadow-sm flex justify-between items-center transition-shadow hover:shadow-lg"><div><p class="font-bold text-lg text-zinc-800">${day.day}</p><p class="text-zinc-600">${day.meal}</p></div><div class="font-semibold text-teal-600 bg-teal-50 px-3 py-1 rounded-full text-sm whitespace-nowrap">🔥 ${day.calories}</div></div>`;
+                    });
+                    html += `</div></div>`;
+                    contentContainer.innerHTML += html;
+                });
+                document.querySelector('.menu-nav-btn')?.classList.add('active');
+                document.querySelector('.menu-tab')?.classList.add('active');
+            }
+
+            function renderRecipes() {
+                const navContainer = document.getElementById('tarifler-sub-nav');
+                const contentContainer = document.getElementById('tarifler-content');
+                navContainer.innerHTML = ''; contentContainer.innerHTML = '';
+                const weekKeys = ['hafta1', 'hafta2', 'hafta3', 'hafta4'];
+                weekKeys.forEach((key, index) => {
+                    if(!appData[key] || !appData[key].tarifler) return;
+                    navContainer.innerHTML += `<button data-tab="${key}-tarifler" class="sub-nav-button tarifler-nav-btn text-sm sm:text-base font-medium py-2 px-4 rounded-full shadow-sm bg-white hover:bg-zinc-100 transition-colors">${index + 1}. Hafta</button>`;
+                    
+                    const pazarTarifleri = appData[key].tarifler.pazar || [];
+                    const haftaiciTarifleri = appData[key].tarifler.haftaici || [];
+
+                    let html = `<div id="${key}-tarifler" class="sub-tab-content tarifler-tab">`;
+
+                    if(pazarTarifleri.length > 0) {
+                        html += `<div class="mb-12"><h2 class="text-3xl font-bold text-zinc-800 mb-6 border-l-4 border-teal-500 pl-4">Pazar Günü Yapılacaklar</h2><div class="grid grid-cols-1 lg:grid-cols-2 gap-8">`;
+                        pazarTarifleri.forEach(recipe => {
+                            html += `<div class="bg-white p-6 rounded-xl shadow-lg transform hover:-translate-y-1 transition-all duration-300"><h3 class="text-3xl font-bold text-teal-700 mb-5">${recipe.title}</h3><div class="space-y-5"><h4 class="font-semibold text-xl text-zinc-800 border-b-2 border-zinc-200 pb-2">Malzemeler</h4><ul class="list-disc list-inside text-zinc-600 space-y-1 pl-2">${recipe.ingredients.map(i => `<li>${i}</li>`).join('')}</ul><h4 class="font-semibold text-xl text-zinc-800 border-b-2 border-zinc-200 pb-2">Hazırlanışı</h4><ol class="list-decimal list-inside text-zinc-600 space-y-2 pl-2">${recipe.steps.map(s => `<li>${s}</li>`).join('')}</ol></div></div>`;
+                        });
+                        html += `</div></div>`;
+                    }
+                    
+                    if(haftaiciTarifleri.length > 0) {
+                        html += `<div><h2 class="text-3xl font-bold text-zinc-800 mb-6 border-l-4 border-teal-500 pl-4">Hafta İçi Hazırlanacaklar</h2><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">`;
+                        haftaiciTarifleri.forEach(recipe => {
+                            html += `<div class="bg-white p-6 rounded-xl shadow-lg transform hover:-translate-y-1 transition-all duration-300"><h3 class="text-3xl font-bold text-teal-700 mb-5">${recipe.title}</h3><div class="space-y-5"><h4 class="font-semibold text-xl text-zinc-800 border-b-2 border-zinc-200 pb-2">Malzemeler</h4><ul class="list-disc list-inside text-zinc-600 space-y-1 pl-2">${recipe.ingredients.map(i => `<li>${i}</li>`).join('')}</ul><h4 class="font-semibold text-xl text-zinc-800 border-b-2 border-zinc-200 pb-2">Hazırlanışı</h4><ol class="list-decimal list-inside text-zinc-600 space-y-2 pl-2">${recipe.steps.map(s => `<li>${s}</li>`).join('')}</ol></div></div>`;
+                        });
+                        html += `</div></div>`;
+                    }
+
+                    html += `</div>`;
+                    contentContainer.innerHTML += html;
+                });
+                document.querySelector('.tarifler-nav-btn')?.classList.add('active');
+                document.querySelector('.tarifler-tab')?.classList.add('active');
+            }
+
+            function setupSubNav(navSelector, contentSelector) {
+                 document.querySelectorAll(navSelector).forEach(button => {
+                    button.addEventListener('click', () => {
+                        const tabId = button.getAttribute('data-tab');
+                        document.querySelectorAll(navSelector).forEach(btn => btn.classList.remove('active'));
+                        button.classList.add('active');
+                        document.querySelectorAll(contentSelector).forEach(content => content.classList.toggle('active', content.id === tabId));
+                    });
+                });
+            }
+
+            function updateAllTotals() {
+                document.querySelectorAll('.alisveris-tab').forEach(tab => {
+                    let total = 0;
+                    tab.querySelectorAll('.list-item-checkbox:checked').forEach(checkbox => total += parseFloat(checkbox.dataset.price));
+                    const totalAmountEl = tab.querySelector('.total-amount');
+                    if (totalAmountEl) totalAmountEl.textContent = `${total.toFixed(2)} TL`;
+                });
+            }
+
+            renderShoppingLists(); renderMenu(); renderRecipes();
+            
+            document.getElementById('main-nav').addEventListener('click', e => {
+                if(e.target.closest('button')){
+                    const button = e.target.closest('button');
+                    const tabId = button.dataset.tab;
+                    document.querySelectorAll('.main-nav-button').forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    document.querySelectorAll('.main-tab-content').forEach(content => content.classList.toggle('active', content.id === tabId));
+                }
+            });
+
+            setupSubNav('.alisveris-nav-btn', '.alisveris-tab');
+            setupSubNav('.menu-nav-btn', '.menu-tab');
+            setupSubNav('.tarifler-nav-btn', '.tarifler-tab');
+            
+            document.getElementById('fetchPricesBtn').addEventListener('click', () => {
+                const loader = document.getElementById('loader');
+                loader.classList.remove('hidden');
+                setTimeout(() => {
+                    document.querySelectorAll('.list-item-checkbox').forEach(checkbox => {
+                        const price = mockPriceDatabase[checkbox.dataset.name] || 0;
+                        checkbox.dataset.price = price;
+                        const priceElement = checkbox.nextElementSibling.querySelector('.item-price');
+                        if (price > 0) priceElement.textContent = `${price.toFixed(2)} TL`;
+                    });
+                    document.querySelectorAll('[id^="total-"]').forEach(totalEl => totalEl.classList.remove('hidden'));
+                    updateAllTotals();
+                    loader.classList.add('hidden');
+                }, 1500);
+            });
+
+            document.getElementById('resetBtn').addEventListener('click', () => {
+                document.querySelectorAll('.list-item-checkbox').forEach(checkbox => checkbox.checked = false);
+                updateAllTotals();
+            });
+
+            document.querySelector('#alisveris-content').addEventListener('change', e => {
+                if (e.target.classList.contains('list-item-checkbox')) updateAllTotals();
+            });
+        });
+    </script>
+</body>
+</html>
